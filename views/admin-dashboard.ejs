@@ -11,7 +11,7 @@
       align-items: center;
       margin-bottom: 30px;
       padding-bottom: 15px;
-      border-bottom: 2px solid #0066cc;
+      border-bottom: 2px solid var(--primary-color);
     }
     .admin-nav {
       display: flex;
@@ -20,28 +20,35 @@
     }
     .admin-nav a {
       padding: 8px 16px;
-      background-color: #f0f0f0;
+      background-color: var(--background-tertiary);
       text-decoration: none;
-      border-radius: 4px;
+      border-radius: 8px;
+      color: var(--text-secondary);
+      transition: all 0.3s ease;
     }
     .admin-nav a.active {
-      background-color: #0066cc;
+      background-color: var(--primary-color);
+      color: white;
+    }
+    .admin-nav a:hover {
+      background-color: var(--primary-dark);
       color: white;
     }
     .prayer-item {
-      border: 1px solid #ddd;
+      border: 1px solid var(--border-color);
       margin-bottom: 15px;
       padding: 15px;
-      border-radius: 5px;
-      background-color: #f9f9f9;
+      border-radius: 10px;
+      background-color: var(--background-primary);
+      box-shadow: 0 2px 10px var(--shadow-light);
     }
     .prayer-item.archived {
-      background-color: #f0f0f0;
-      opacity: 0.8;
+      background-color: var(--background-tertiary);
+      opacity: 0.9;
     }
     .prayer-meta {
       font-size: 0.9em;
-      color: #666;
+      color: var(--text-secondary);
       margin-bottom: 10px;
     }
     .prayer-actions {
@@ -49,22 +56,36 @@
     }
     .prayer-actions button {
       margin-right: 10px;
-      padding: 5px 10px;
+      padding: 8px 16px;
       border: none;
-      border-radius: 3px;
+      border-radius: 6px;
       cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s ease;
     }
     .btn-archive {
-      background-color: #fd7e14;
+      background-color: var(--warning-color);
       color: white;
+    }
+    .btn-archive:hover {
+      background-color: #f59e0b;
+      transform: translateY(-1px);
     }
     .btn-delete {
-      background-color: #dc3545;
+      background-color: var(--error-color);
       color: white;
     }
+    .btn-delete:hover {
+      background-color: #ef4444;
+      transform: translateY(-1px);
+    }
     .btn-unarchive {
-      background-color: #28a745;
+      background-color: var(--success-color);
       color: white;
+    }
+    .btn-unarchive:hover {
+      background-color: #22c55e;
+      transform: translateY(-1px);
     }
     .stats {
       display: flex;
@@ -73,13 +94,45 @@
     }
     .stat-box {
       padding: 15px;
-      background-color: #e9ecef;
-      border-radius: 5px;
+      background-color: var(--background-primary);
+      border-radius: 10px;
       text-align: center;
+      box-shadow: 0 2px 10px var(--shadow-light);
+      border: 1px solid var(--border-color);
+    }
+    .week-header {
+      background: var(--gradient-primary);
+      color: white;
+      padding: 1em;
+      border-radius: 10px;
+      margin: 2em 0 1em 0;
+      text-align: center;
+    }
+    .week-header h3 {
+      margin: 0;
+      font-size: 1.1em;
+      font-weight: 600;
+    }
+    .week-header p {
+      margin: 0.5em 0 0 0;
+      opacity: 0.9;
+      font-size: 0.9em;
+    }
+    .prayer-count-badge {
+      display: inline-block;
+      background: var(--gradient-success);
+      color: white;
+      padding: 0.25em 0.75em;
+      border-radius: 20px;
+      font-size: 0.9em;
+      font-weight: 500;
+      margin-left: 0.5em;
     }
   </style>
 </head>
 <body>
+  <%- include('partials/nav', { currentPage: 'admin' }) %>
+  
   <main>
     <div class="admin-header">
       <h1>Admin Dashboard</h1>
@@ -100,12 +153,12 @@
         Active Prayers
       </div>
       <div class="stat-box">
-        <strong><%= archivedPrayers.length %></strong><br>
-        Archived Prayers
+        <strong><%= currentView === 'archived' ? archivedPrayersByWeek.length : archivedPrayers.length %></strong><br>
+        <% if (currentView === 'archived') { %>Archived Weeks<% } else { %>Archived Prayers<% } %>
       </div>
       <div class="stat-box">
-        <strong><%= activePrayers.filter(p => p.prayedFor).length %></strong><br>
-        Prayed For
+        <strong><%= activePrayers.reduce((sum, p) => sum + p.prayerCount, 0) %></strong><br>
+        Total Prayers
       </div>
     </div>
 
@@ -119,7 +172,9 @@
             <div class="prayer-meta">
               <strong><%= prayer.name %></strong> • 
               <%= new Date(prayer.createdAt).toLocaleString() %> • 
-              <%= prayer.prayedFor ? '✓ Prayed For' : 'Not yet prayed for' %>
+              <span class="prayer-count-badge">
+                <%= prayer.prayerCount %> prayer<%= prayer.prayerCount !== 1 ? 's' : '' %>
+              </span>
             </div>
             <div class="prayer-text"><%= prayer.text %></div>
             <div class="prayer-actions">
@@ -136,28 +191,43 @@
       <% } %>
     <% } else { %>
       <h2>Archived Prayer Requests</h2>
-      <% if (archivedPrayers.length === 0) { %>
+      <% if (archivedPrayersByWeek.length === 0) { %>
         <p>No archived prayer requests.</p>
       <% } else { %>
-        <% archivedPrayers.forEach(prayer => { %>
-          <div class="prayer-item archived">
-            <div class="prayer-meta">
-              <strong><%= prayer.name %></strong> • 
-              <%= new Date(prayer.createdAt).toLocaleString() %> • 
-              Archived: <%= new Date(prayer.archivedAt).toLocaleString() %>
-              <% if (prayer.archivedBy) { %> by <%= prayer.archivedBy %><% } %>
-            </div>
-            <div class="prayer-text"><%= prayer.text %></div>
-            <div class="prayer-actions">
-              <form method="POST" action="/admin/unarchive/<%= prayer.id %>" style="display: inline;">
-                <button type="submit" class="btn-unarchive">Unarchive</button>
-              </form>
-              <form method="POST" action="/admin/delete/<%= prayer.id %>" style="display: inline;" 
-                    onsubmit="return confirm('Are you sure you want to permanently delete this prayer request?')">
-                <button type="submit" class="btn-delete">Delete</button>
-              </form>
-            </div>
+        <% archivedPrayersByWeek.forEach(week => { %>
+          <div class="week-header">
+            <h3>Week of <%= new Date(week.weekStart).toLocaleDateString('en-US', { 
+              weekday: 'long', 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            }) %></h3>
+            <p><%= week.weekStart %> to <%= week.weekEnd %></p>
           </div>
+          
+          <% week.prayers.forEach(prayer => { %>
+            <div class="prayer-item archived">
+              <div class="prayer-meta">
+                <strong><%= prayer.name %></strong> • 
+                <%= new Date(prayer.createdAt).toLocaleString() %> • 
+                <span class="prayer-count-badge">
+                  <%= prayer.prayerCount %> prayer<%= prayer.prayerCount !== 1 ? 's' : '' %>
+                </span>
+                • Archived: <%= new Date(prayer.archivedAt).toLocaleString() %>
+                <% if (prayer.archivedBy) { %> by <%= prayer.archivedBy %><% } %>
+              </div>
+              <div class="prayer-text"><%= prayer.text %></div>
+              <div class="prayer-actions">
+                <form method="POST" action="/admin/unarchive/<%= prayer.id %>" style="display: inline;">
+                  <button type="submit" class="btn-unarchive">Unarchive</button>
+                </form>
+                <form method="POST" action="/admin/delete/<%= prayer.id %>" style="display: inline;" 
+                      onsubmit="return confirm('Are you sure you want to permanently delete this prayer request?')">
+                  <button type="submit" class="btn-delete">Delete</button>
+                </form>
+              </div>
+            </div>
+          <% }) %>
         <% }) %>
       <% } %>
     <% } %>

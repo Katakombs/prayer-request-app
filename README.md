@@ -6,7 +6,8 @@ A simple web application for submitting and viewing prayer requests with email n
 
 - Submit prayer requests with optional name
 - View all prayer requests
-- Mark requests as "prayed for"
+- **Prayer count tracking** - Click the prayer button to increment prayer count
+- **Archived prayers view** - View completed prayers grouped by week
 - Email notifications when new requests are submitted
 - Spam protection with honeypot field
 
@@ -21,7 +22,12 @@ A simple web application for submitting and viewing prayer requests with email n
    - Copy `.env.example` to `.env`
    - Update the email configuration values in `.env`
 
-3. Start the application:
+3. **Run database migration** (if upgrading from previous version):
+   ```bash
+   node migrate.js
+   ```
+
+4. Start the application:
    ```bash
    npm start
    ```
@@ -38,6 +44,10 @@ To enable email notifications when new prayer requests are submitted:
    - `SMTP_PASS`: Your email password or app-specific password
    - `NOTIFICATION_EMAIL`: Where to send notifications
    - `APP_NAME`: Name for your app (appears in emails)
+
+**For Local Development:**
+- Set `NODE_ENV=development` or `DISABLE_EMAIL=true` in your `.env` file to disable email sending
+- Prayer requests will be logged to the console instead
 
 ### Gmail Setup
 
@@ -56,13 +66,28 @@ For Gmail:
 ## Running the App
 
 1. Visit `http://localhost:3000` to submit prayer requests
-2. Visit `http://localhost:3000/requests` to view all requests
-3. Check the designated notification email when new requests are submitted
+2. Visit `http://localhost:3000/requests` to view all requests and pray for them
+3. Visit `http://localhost:3000/archived` to view archived prayers grouped by week
+4. Check the designated notification email when new requests are submitted
+
+## New Features
+
+### Prayer Count System
+- Instead of a simple checkbox, users now click a "Pray" button
+- Each click increments the prayer count for that request
+- Prayer counts are displayed prominently on each request
+
+### Archived Prayers
+- View completed/archived prayer requests at `/archived`
+- Prayers are grouped by week for easy browsing
+- Shows prayer counts and archiving information
+- Accessible from the main requests page
 
 ## File Structure
 
 - `app.js` - Main application server
 - `views/` - EJS templates
 - `public/` - Static assets
-- `db/prayers.json` - Prayer requests storage
+- `database/` - Database setup and connection
+- `migrate.js` - Database migration script
 - `.env` - Email configuration (create from .env.example)

@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <%- include('partials/nav', { currentPage: 'submit' }) %>
+  
   <header>
     <h1>🙏 Prayer Requests</h1>
     <p class="subtitle">Share your prayer needs with the Garretson Rd Church of Christ</p>
@@ -43,10 +45,6 @@
           <span class="btn-loading" style="display:none;">Submitting... ✨</span>
         </button>
       </form>
-      
-      <div class="actions">
-        <a href="/requests" class="secondary-btn">View All Prayer Requests</a>
-      </div>
     </div>
   </main>
   

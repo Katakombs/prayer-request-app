@@ -23,7 +23,7 @@ class Database {
       id: row.id,
       name: row.name,
       text: row.text,
-      prayedFor: Boolean(row.prayed_for),
+      prayerCount: row.prayer_count,
       createdAt: row.created_at.toISOString(),
       updatedAt: row.updated_at.toISOString()
     }));
@@ -37,7 +37,7 @@ class Database {
       id: row.id,
       name: row.name,
       text: row.text,
-      prayedFor: Boolean(row.prayed_for),
+      prayerCount: row.prayer_count,
       createdAt: row.created_at.toISOString(),
       updatedAt: row.updated_at.toISOString(),
       archivedAt: row.archived_at ? row.archived_at.toISOString() : null,
@@ -45,19 +45,65 @@ class Database {
     }));
   }
 
+  async getArchivedPrayersByWeek() {
+    const [rows] = await this.pool.execute(`
+      SELECT 
+        *,
+        YEARWEEK(archived_at, 0) as week_number,
+        DATE_FORMAT(DATE_SUB(archived_at, INTERVAL WEEKDAY(archived_at) DAY), '%Y-%m-%d') as week_start,
+        DATE_FORMAT(DATE_ADD(DATE_SUB(archived_at, INTERVAL WEEKDAY(archived_at) DAY), INTERVAL 6 DAY), '%Y-%m-%d') as week_end
+      FROM prayers 
+      WHERE archived = TRUE 
+      ORDER BY archived_at DESC
+    `);
+    
+    const groupedPrayers = {};
+    rows.forEach(row => {
+      const weekKey = row.week_number;
+      if (!groupedPrayers[weekKey]) {
+        groupedPrayers[weekKey] = {
+          weekNumber: row.week_number,
+          weekStart: row.week_start,
+          weekEnd: row.week_end,
+          prayers: []
+        };
+      }
+      
+      groupedPrayers[weekKey].prayers.push({
+        id: row.id,
+        name: row.name,
+        text: row.text,
+        prayerCount: row.prayer_count,
+        createdAt: row.created_at.toISOString(),
+        updatedAt: row.updated_at.toISOString(),
+        archivedAt: row.archived_at ? row.archived_at.toISOString() : null,
+        archivedBy: row.archived_by
+      });
+    });
+    
+    return Object.values(groupedPrayers).sort((a, b) => b.weekNumber - a.weekNumber);
+  }
+
   async createPrayer(prayer) {
     const { id, name, text } = prayer;
     await this.pool.execute(
-      'INSERT INTO prayers (id, name, text, prayed_for, created_at) VALUES (?, ?, ?, FALSE, NOW())',
+      'INSERT INTO prayers (id, name, text, prayer_count, created_at) VALUES (?, ?, ?, 0, NOW())',
       [id, name, text]
     );
     return prayer;
   }
 
-  async updatePrayedFor(id, prayedFor) {
+  async incrementPrayerCount(id) {
     await this.pool.execute(
-      'UPDATE prayers SET prayed_for = ?, updated_at = NOW() WHERE id = ?',
-      [prayedFor, id]
+      'UPDATE prayers SET prayer_count = prayer_count + 1, updated_at = NOW() WHERE id = ?',
+      [id]
+    );
+  }
+
+  async updatePrayerCount(id, count) {
+    await this.pool.execute(
+      'UPDATE prayers SET prayer_count = ?, updated_at = NOW() WHERE id = ?',
+      [count, id]
     );
   }
 
@@ -89,13 +135,16 @@ class Database {
     
     for (const prayer of prayers) {
       try {
+        // Convert old prayedFor boolean to prayer count
+        const prayerCount = prayer.prayedFor ? 1 : 0;
+        
         await this.pool.execute(
-          'INSERT INTO prayers (id, name, text, prayed_for, created_at) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name)',
+          'INSERT INTO prayers (id, name, text, prayer_count, created_at) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name)',
           [
             prayer.id,
             prayer.name || 'Anonymous',
             prayer.text,
-            prayer.prayedFor || false,
+            prayerCount,
             new Date(prayer.createdAt)
           ]
         );

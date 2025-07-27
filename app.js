@@ -25,6 +25,17 @@ const transporter = nodemailer.createTransport({
 
 // Function to send email notification
 async function sendPrayerNotification(prayer) {
+  // Disable email sending for local development
+  if (process.env.NODE_ENV === 'development' || process.env.DISABLE_EMAIL === 'true') {
+    console.log('Email sending disabled for local development');
+    console.log('Prayer request received:', {
+      from: prayer.name,
+      text: prayer.text,
+      submitted: new Date(prayer.createdAt).toLocaleString()
+    });
+    return;
+  }
+
   if (!process.env.SMTP_USER || !process.env.NOTIFICATION_EMAIL) {
     console.log('Email configuration not complete. Skipping notification.');
     return;
@@ -88,16 +99,26 @@ function requireAuth(req, res, next) {
 
 // Public routes
 app.get('/', (req, res) => {
-  res.render('index');
+  res.render('index', { currentPage: 'submit' });
 });
 
 app.get('/requests', async (req, res) => {
   try {
     const prayers = await db.getAllPrayers();
-    res.render('requests', { prayers });
+    res.render('requests', { prayers, currentPage: 'view' });
   } catch (error) {
     console.error('Error fetching prayers:', error);
     res.status(500).send('Error loading prayer requests');
+  }
+});
+
+app.get('/archived', async (req, res) => {
+  try {
+    const archivedPrayersByWeek = await db.getArchivedPrayersByWeek();
+    res.render('archived', { archivedPrayersByWeek, currentPage: 'archived' });
+  } catch (error) {
+    console.error('Error fetching archived prayers:', error);
+    res.status(500).send('Error loading archived prayers');
   }
 });
 
@@ -189,6 +210,16 @@ app.post('/api/prayer', async (req, res) => {
   }
 });
 
+app.post('/api/prayer/:id/pray', async (req, res) => {
+  try {
+    await db.incrementPrayerCount(req.params.id);
+    res.redirect('/requests');
+  } catch (error) {
+    console.error('Error incrementing prayer count:', error);
+    res.status(500).send('Error updating prayer count');
+  }
+});
+
 app.post('/api/prayer/:id/prayed', async (req, res) => {
   try {
     const prayers = await db.getAllPrayers();
@@ -243,6 +274,7 @@ app.get('/admin', requireAuth, async (req, res) => {
     res.render('admin-dashboard', {
       username: req.session.username,
       currentView: 'active',
+      currentPage: 'admin',
       activePrayers,
       archivedPrayers
     });
@@ -255,12 +287,13 @@ app.get('/admin', requireAuth, async (req, res) => {
 app.get('/admin/archived', requireAuth, async (req, res) => {
   try {
     const activePrayers = await db.getAllPrayers();
-    const archivedPrayers = await db.getArchivedPrayers();
+    const archivedPrayersByWeek = await db.getArchivedPrayersByWeek();
     res.render('admin-dashboard', {
       username: req.session.username,
       currentView: 'archived',
+      currentPage: 'admin',
       activePrayers,
-      archivedPrayers
+      archivedPrayersByWeek
     });
   } catch (error) {
     console.error('Error loading archived prayers:', error);
