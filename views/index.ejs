@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Submit a Prayer Request - Prayer App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://use.typekit.net/dyh7lzm.css">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <h1>🙏 Prayer Requests</h1>
+    <p class="subtitle">Share your prayer needs with the Garretson Rd Church of Christ</p>
+  </header>
+  
+  <main>
+    <div class="form-container">
+      <h2>Submit a Prayer Request</h2>
+      <p class="form-description">
+        Your prayer request will be shared with our church. 
+        All requests are treated with care and confidentiality.
+      </p>
+      
+      <form id="prayerForm" action="/api/prayer" method="POST">
+        <div class="input-group">
+          <label for="name">Your Name (Optional)</label>
+          <input type="text" id="name" name="name" placeholder="Enter your name or leave blank for Anonymous" />
+        </div>
+        
+        <div class="input-group">
+          <label for="text">Prayer Request *</label>
+          <textarea id="text" name="text" rows="6" placeholder="Please share what you'd like us to pray for..." required minlength="10" maxlength="2000"></textarea>
+          <small class="helper-text">Required field (10-2000 characters)</small>
+        </div>
+        
+        <!-- Honeypot field for spam protection -->
+        <input type="text" name="nickname" style="display:none" tabindex="-1" autocomplete="off">
+        
+        <!-- Rate limiting timestamp -->
+        <input type="hidden" name="timestamp" id="timestamp" value="">
+        
+        <button type="submit" id="submitBtn" class="primary-btn" disabled>
+          <span class="btn-text">Submit Prayer Request</span>
+          <span class="btn-loading" style="display:none;">Submitting... ✨</span>
+        </button>
+      </form>
+      
+      <div class="actions">
+        <a href="/requests" class="secondary-btn">View All Prayer Requests</a>
+      </div>
+    </div>
+  </main>
+  
+  <footer>
+    <p>"Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God." - Philippians 4:6</p>
+  </footer>
+
+<script>
+  // Security: Set timestamp when page loads for rate limiting
+  document.getElementById('timestamp').value = Date.now();
+  
+  // Security: Enable submit button after 5 seconds to prevent rapid submissions
+  setTimeout(() => {
+    const submitBtn = document.getElementById('submitBtn');
+    const textarea = document.getElementById('text');
+    
+    // Only enable if textarea has valid content
+    if (textarea.value.length >= 10 && textarea.value.length <= 2000) {
+      submitBtn.disabled = false;
+    }
+  }, 5000);
+  
+  // Character counter for textarea
+  const textarea = document.getElementById('text');
+  const helperText = textarea.parentElement.querySelector('.helper-text');
+  
+  textarea.addEventListener('input', function() {
+    const length = this.value.length;
+    const remaining = 2000 - length;
+    helperText.textContent = `Required field (10-2000 characters) - ${remaining} characters remaining`;
+    
+    // Enable/disable submit based on length
+    const submitBtn = document.getElementById('submitBtn');
+    if (length >= 10 && length <= 2000) {
+      submitBtn.disabled = false;
+    } else {
+      submitBtn.disabled = true;
+    }
+  });
+
+  document.getElementById('prayerForm').addEventListener('submit', function (e) {
+    const button = document.getElementById('submitBtn');
+    const btnText = button.querySelector('.btn-text');
+    const btnLoading = button.querySelector('.btn-loading');
+    const text = document.getElementById('text').value;
+    
+    // Additional client-side validation
+    if (text.length < 10 || text.length > 2000) {
+      e.preventDefault();
+      alert('Prayer request must be between 10 and 2000 characters.');
+      return;
+    }
+    
+    // Check for obvious spam patterns
+    const spamPatterns = [
+      /http[s]?:\/\//i,  // URLs
+      /www\./i,          // Website references
+      /\b(buy|sell|cheap|free|money|cash|loan|credit)\b/i, // Commercial terms
+      /(.)\1{10,}/       // Repeated characters (11+ times)
+    ];
+    
+    for (let pattern of spamPatterns) {
+      if (pattern.test(text)) {
+        e.preventDefault();
+        alert('Your prayer request contains content that appears to be spam. Please revise and try again.');
+        return;
+      }
+    }
+    
+    button.disabled = true;
+    btnText.style.display = 'none';
+    btnLoading.style.display = 'inline';
+    
+    // Re-enable after 5 seconds in case of issues
+    setTimeout(() => {
+      if (button.disabled) {
+        button.disabled = false;
+        btnText.style.display = 'inline';
+        btnLoading.style.display = 'none';
+      }
+    }, 5000);
+  });
+</script>
+</body>
+</html>

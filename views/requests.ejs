@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Prayer Requests - Prayer App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://use.typekit.net/dyh7lzm.css">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .prayer-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5em;
+      margin-top: 0.5em;
+      padding: 0.25em 0.75em;
+      border-radius: 20px;
+      font-size: 0.9em;
+      font-weight: 500;
+    }
+    
+    .prayer-status.prayed {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    
+    .prayer-status.not-prayed {
+      background-color: #fff3cd;
+      color: #856404;
+    }
+    
+    .prayer-meta {
+      font-size: 0.9em;
+      color: #666;
+      margin-top: 0.5em;
+    }
+    
+    .checkbox-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25em;
+    }
+    
+    .checkbox-label {
+      font-size: 0.8em;
+      color: #666;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🙏 Prayer Requests</h1>
+    <p class="subtitle">Join us in prayer for these requests</p>
+  </header>
+  
+  <main>
+    <div class="prayer-list-container">
+      <% if (prayers.length === 0) { %>
+        <div class="empty-state">
+          <h3>No prayer requests yet</h3>
+          <p>Be the first to share a prayer request with our community.</p>
+          <a href="/" class="primary-btn">Submit First Prayer Request</a>
+        </div>
+      <% } else { %>
+        <div class="prayer-stats">
+          <span class="stat">
+            <strong><%= prayers.length %></strong> total requests
+          </span>
+          <span class="stat">
+            <strong><%= prayers.filter(p => p.prayedFor).length %></strong> prayed for
+          </span>
+        </div>
+        
+        <ul id="prayerList" class="prayer-list">
+          <% prayers.forEach(prayer => { %>
+            <li class="prayer-item <%= prayer.prayedFor ? 'prayed' : '' %>">
+              <div class="checkbox-container">
+                <form method="POST" action="/api/prayer/<%= prayer.id %>/prayed">
+                  <input 
+                    class="large-checkbox" 
+                    type="checkbox" 
+                    onChange="this.form.submit()" 
+                    <%= prayer.prayedFor ? 'checked' : '' %> 
+                    title="<%= prayer.prayedFor ? 'Mark as not prayed for' : 'Mark as prayed for' %>"
+                  />
+                </form>
+                <span class="checkbox-label">
+                  <%= prayer.prayedFor ? 'Prayed' : 'Pray' %>
+                </span>
+              </div>
+              
+              <div class="prayer-content">
+                <div class="prayer-text">
+                  <strong><%= prayer.name %>:</strong> <%= prayer.text %>
+                </div>
+                <div class="prayer-meta">
+                  <small data-time="<%= prayer.createdAt %>"></small>
+                  <span class="prayer-status <%= prayer.prayedFor ? 'prayed' : 'not-prayed' %>">
+                    <%= prayer.prayedFor ? '✓ Prayed For' : '⏳ Needs Prayer' %>
+                  </span>
+                </div>
+              </div>
+            </li>
+          <% }) %>
+        </ul>
+      <% } %>
+      
+      <div class="actions">
+        <a href="/" class="primary-btn">Submit Another Prayer Request</a>
+      </div>
+    </div>
+  </main>
+  
+  <footer>
+    <p>"The prayer of a righteous person is powerful and effective." - James 5:16</p>
+  </footer>
+</body>
+
+<script>
+async function fetchPrayers() {
+  try {
+    const res = await fetch('/api/prayer');
+    const data = await res.json();
+    const list = document.getElementById('prayerList');
+    
+    if (!list) return; // No list on empty state
+    
+    list.innerHTML = '';
+    data.forEach(p => {
+      const li = document.createElement('li');
+      li.className = `prayer-item ${p.prayedFor ? 'prayed' : ''}`;
+      li.innerHTML = `
+        <div class="checkbox-container">
+          <form method="POST" action="/api/prayer/${p.id}/prayed">
+            <input class="large-checkbox" type="checkbox" onChange="this.form.submit()" ${p.prayedFor ? 'checked' : ''} 
+                   title="${p.prayedFor ? 'Mark as not prayed for' : 'Mark as prayed for'}" />
+          </form>
+          <span class="checkbox-label">${p.prayedFor ? 'Prayed' : 'Pray'}</span>
+        </div>
+        <div class="prayer-content">
+          <div class="prayer-text">
+            <strong>${p.name}:</strong> ${p.text}
+          </div>
+          <div class="prayer-meta">
+            <small data-time="${p.createdAt}"></small>
+            <span class="prayer-status ${p.prayedFor ? 'prayed' : 'not-prayed'}">
+              ${p.prayedFor ? '✓ Prayed For' : '⏳ Needs Prayer'}
+            </span>
+          </div>
+        </div>`;
+      list.appendChild(li);
+    });
+    
+    // Update timestamps
+    updateTimestamps();
+  } catch (error) {
+    console.error('Error fetching prayers:', error);
+  }
+}
+
+function updateTimestamps() {
+  document.querySelectorAll('small[data-time]').forEach(el => {
+    const raw = el.getAttribute('data-time');
+    const date = new Date(raw);
+    const now = new Date();
+    const diffMinutes = Math.floor((now - date) / (1000 * 60));
+    
+    let timeText;
+    if (diffMinutes < 1) {
+      timeText = 'Just now';
+    } else if (diffMinutes < 60) {
+      timeText = `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} ago`;
+    } else if (diffMinutes < 1440) {
+      const hours = Math.floor(diffMinutes / 60);
+      timeText = `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+    } else {
+      timeText = date.toLocaleDateString();
+    }
+    
+    el.textContent = timeText;
+  });
+}
+
+// Initial timestamp update
+updateTimestamps();
+
+// Update timestamps every minute
+setInterval(updateTimestamps, 60000);
+</script>
+
+<script>
+// Convert all server-rendered timestamps on initial load
+updateTimestamps();
+</script>
+</html>
